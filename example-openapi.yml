@@ -1,0 +1,1037 @@
+components:
+  parameters:
+    f:
+      description: The optional f parameter indicates the output format which the
+        server shall provide as part of the response document.  The default format
+        is GeoJSON.
+      explode: false
+      in: query
+      name: f
+      required: false
+      schema:
+        default: json
+        enum:
+        - json
+        - html
+        - jsonld
+        type: string
+      style: form
+    filter:
+      description: The optional filter parameter to provide filters on the collection
+        items
+      explode: false
+      in: query
+      name: filter
+      required: false
+      schema:
+        type: string
+      style: form
+    filter-lang:
+      description: The optional parameter to provide filter lang
+      explode: false
+      in: query
+      name: filter-lang
+      required: false
+      schema:
+        default: cql-text
+        enum:
+        - cql-text
+        - cql-json
+        type: string
+      style: form
+    sortby:
+      description: The optional sortby parameter indicates the sort property and order
+        on which the server shall present results in the response document using the
+        convention `sortby=PROPERTY:X`, where `PROPERTY` is the sort property and
+        `X` is the sort order (`A` is ascending, `D` is descending). Sorting by multiple
+        properties is supported by providing a comma-separated list.
+      explode: false
+      in: query
+      name: sortby
+      required: false
+      schema:
+        type: string
+      style: form
+    startindex:
+      description: The optional startindex parameter indicates the index within the
+        result set from which the server shall begin presenting results in the response
+        document.  The first element has an index of 0 (default).
+      explode: false
+      in: query
+      name: startindex
+      required: false
+      schema:
+        default: 0
+        minimum: 0
+        type: integer
+      style: form
+  responses:
+    '200':
+      description: successful operation
+    Queryables:
+      content:
+        application/json:
+          example:
+            queryables:
+            - description: The average distance of the road segment above sea level.
+              queryable: elevation
+              title: Elevation
+              type: double
+            - description: The total number of lanes in all directions.
+              queryable: nlanes
+              title: Temperature
+              type: integer
+            - description: The geometry of the road segment
+              queryable: geom
+              title: Segment Geometry
+              type: linestring
+            - description: The common name of the road segment.
+              queryable: name
+              title: Segment Name
+              type: string
+          schema:
+            $ref: '#/components/schemas/queryables'
+      description: Dataset Querables
+    default:
+      content:
+        application/json:
+          schema:
+            $ref: https://raw.githubusercontent.com/opengeospatial/wps-rest-binding/master/core/openapi/schemas/exception.yaml
+      description: Unexpected error
+  schemas:
+    add:
+      $ref: '#/components/schemas/arithmeticOperands'
+    after:
+      $ref: '#/components/schemas/temporalOperands'
+    and:
+      $ref: '#/components/schemas/booleanOperands'
+    anyinteracts:
+      $ref: '#/components/schemas/temporalOperands'
+    arithmeticOperands:
+      additionalProperties: true
+      maxProperties: 2
+      minProperties: 2
+      nullable: false
+      properties:
+        '*':
+          $ref: '#/components/schemas/mul'
+        +:
+          $ref: '#/components/schemas/add'
+        '-':
+          $ref: '#/components/schemas/sub'
+        /:
+          $ref: '#/components/schemas/div'
+        function:
+          $ref: '#/components/schemas/function'
+        property:
+          nullable: false
+          type: string
+        value:
+          nullable: false
+          type: number
+      type: object
+    bbox:
+      items:
+        maxItems: 6
+        minItems: 4
+        nullable: false
+        type: number
+      nullable: false
+      type: array
+    before:
+      $ref: '#/components/schemas/temporalOperands'
+    begins:
+      $ref: '#/components/schemas/temporalOperands'
+    begunby:
+      $ref: '#/components/schemas/temporalOperands'
+    between:
+      additionalProperties: true
+      nullable: false
+      properties:
+        lower:
+          $ref: '#/components/schemas/scalarLiteral'
+        property:
+          nullable: false
+          type: string
+        upper:
+          $ref: '#/components/schemas/scalarLiteral'
+      required:
+      - property
+      - lower
+      - upper
+      type: object
+    booleanOperands:
+      items:
+        $ref: '#/components/schemas/predicates'
+        minItems: 2
+      nullable: false
+      type: array
+    capabilities-assertion:
+      properties:
+        name:
+          enum:
+          - logical
+          - comparison
+          - spatial
+          - temporal
+          - arithmetic
+          type: string
+        operands:
+          items:
+            type: string
+          type: array
+        operators:
+          items:
+            type: string
+          type: array
+      required:
+      - name
+      - operators
+      type: object
+    comparisonExpressions:
+      additionalProperties: true
+      maxProperties: 1
+      minProperties: 1
+      nullable: false
+      properties:
+        between:
+          $ref: '#/components/schemas/between'
+        eq:
+          $ref: '#/components/schemas/eq'
+        gt:
+          $ref: '#/components/schemas/gt'
+        gte:
+          $ref: '#/components/schemas/gte'
+        in:
+          $ref: '#/components/schemas/in'
+        like:
+          $ref: '#/components/schemas/like'
+        lt:
+          $ref: '#/components/schemas/lt'
+        lte:
+          $ref: '#/components/schemas/lte'
+      type: object
+    contains:
+      $ref: '#/components/schemas/spatialOperands'
+    crosses:
+      $ref: '#/components/schemas/spatialOperands'
+    disjoint:
+      $ref: '#/components/schemas/spatialOperands'
+    div:
+      $ref: '#/components/schemas/arithmeticOperands'
+    during:
+      $ref: '#/components/schemas/temporalOperands'
+    endedby:
+      $ref: '#/components/schemas/temporalOperands'
+    ends:
+      $ref: '#/components/schemas/temporalOperands'
+    envelopeLiteral:
+      additionalProperties: true
+      nullable: false
+      properties:
+        bbox:
+          $ref: '#/components/schemas/bbox'
+      type: object
+    eq:
+      $ref: '#/components/schemas/scalarOperands'
+    equals:
+      $ref: '#/components/schemas/spatialOperands'
+    filter-capabilities:
+      additionalProperties: true
+      nullable: false
+      properties:
+        capabilities:
+          items:
+            $ref: '#/components/schemas/capabilities-assertion'
+          nullable: false
+          type: array
+        conformance-classes:
+          items:
+            format: uri
+            nullable: false
+            type: string
+          nullable: false
+          type: array
+        functions:
+          items:
+            $ref: '#/components/schemas/functionDescription'
+          nullable: false
+          type: array
+      required:
+      - conformance-classes
+      - capabilites
+      type: object
+    function:
+      additionalProperties: true
+      nullable: false
+      properties:
+        arguments:
+          items:
+            oneOf:
+            - nullable: false
+              type: string
+            - nullable: false
+              type: number
+            - nullable: false
+              type: boolean
+            - $ref: '#/components/schemas/functionObjectArgument'
+          nullable: false
+          type: array
+        name:
+          nullable: false
+          type: string
+      type: object
+    functionDescription:
+      properties:
+        arguments:
+          items:
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+              typeRef:
+                format: uri
+                type: string
+            type: object
+          type: array
+        name:
+          type: string
+        returns:
+          properties:
+            type:
+              type: string
+            typeRef:
+              format: uri
+              type: string
+          type: object
+      type: object
+    functionObjectArgument:
+      additionalProperties: true
+      nullable: false
+      properties:
+        '*':
+          $ref: '#/components/schemas/mul'
+        +:
+          $ref: '#/components/schemas/add'
+        '-':
+          $ref: '#/components/schemas/sub'
+        /:
+          $ref: '#/components/schemas/div'
+        bbox:
+          $ref: '#/components/schemas/bbox'
+        function:
+          $ref: '#/components/schemas/function'
+        geometry:
+          $ref: '#/components/schemas/geometryLiteral'
+        property:
+          nullable: false
+          type: string
+        temporalValue:
+          $ref: '#/components/schemas/temporalLiteral'
+      type: object
+    geometryLiteral:
+      additionalProperties: true
+      nullable: false
+      type: object
+    gt:
+      $ref: '#/components/schemas/scalarOperands'
+    gte:
+      $ref: '#/components/schemas/scalarOperands'
+    in:
+      additionalProperties: true
+      nullable: false
+      properties:
+        nocase:
+          default: true
+          nullable: false
+          type: boolean
+        property:
+          nullable: false
+          type: string
+        values:
+          items:
+            $ref: '#/components/schemas/scalarLiteral'
+          nullable: false
+          type: array
+      type: object
+    intersects:
+      $ref: '#/components/schemas/spatialOperands'
+    like:
+      additionalProperties: true
+      nullable: false
+      properties:
+        escape:
+          default: \\
+          nullable: false
+          type: string
+        nocase:
+          default: true
+          nullable: false
+          type: boolean
+        property:
+          nullable: false
+          type: string
+        singleChar:
+          default: _
+          nullable: false
+          type: string
+        value:
+          $ref: '#/components/schemas/scalarLiteral'
+        wildcard:
+          default: '%'
+          nullable: false
+          type: string
+      type: object
+    logicalExpression:
+      additionalProperties: true
+      maxProperties: 1
+      minProperties: 1
+      nullable: false
+      properties:
+        and:
+          $ref: '#/components/schemas/and'
+        not:
+          $ref: '#/components/schemas/not'
+        or:
+          $ref: '#/components/schemas/or'
+      type: object
+    lt:
+      $ref: '#/components/schemas/scalarOperands'
+    lte:
+      $ref: '#/components/schemas/scalarOperands'
+    meets:
+      $ref: '#/components/schemas/temporalOperands'
+    metby:
+      $ref: '#/components/schemas/temporalOperands'
+    mul:
+      $ref: '#/components/schemas/arithmeticOperands'
+    not:
+      $ref: '#/components/schemas/predicates'
+    or:
+      $ref: '#/components/schemas/booleanOperands'
+    overlappedby:
+      $ref: '#/components/schemas/temporalOperands'
+    overlaps:
+      $ref: '#/components/schemas/spatialOperands'
+    periodLiteral:
+      items:
+        $ref: '#/components/schemas/timeLiteral'
+        maxItems: 2
+        minItems: 2
+      nullable: false
+      type: array
+    predicates:
+      additionalProperties: true
+      allOf:
+      - $ref: '#/components/schemas/logicalExpression'
+      - $ref: '#/components/schemas/comparisonExpressions'
+      - $ref: '#/components/schemas/spatialExpressions'
+      - $ref: '#/components/schemas/temporalExpressions'
+      maxProperties: 1
+      minProperties: 1
+      nullable: false
+      type: object
+    queryables:
+      properties:
+        queryables:
+          items:
+            properties:
+              description:
+                description: a human-readable narrative describing the queryable
+                type: string
+              language:
+                default:
+                - en
+                description: the language used for the title and description
+                type: string
+              queryable:
+                description: the token that may be used in a CQL predicate
+                type: string
+              title:
+                description: a human readble title for the queryable
+                type: string
+              type:
+                description: the data type of the queryable
+                type: string
+              type-ref:
+                description: a reference to the formal definition of the type
+                format: url
+                type: string
+            required:
+            - queryable
+            - type
+            type: object
+          type: array
+      required:
+      - queryables
+      type: object
+    scalarLiteral:
+      oneOf:
+      - nullable: false
+        type: string
+      - nullable: false
+        type: number
+      - nullable: false
+        type: boolean
+    scalarOperands:
+      additionalProperties: true
+      maxProperties: 2
+      minProperties: 2
+      nullable: false
+      properties:
+        '*':
+          $ref: '#/components/schemas/mul'
+        +:
+          $ref: '#/components/schemas/add'
+        '-':
+          $ref: '#/components/schemas/sub'
+        /:
+          $ref: '#/components/schemas/div'
+        function:
+          $ref: '#/components/schemas/function'
+        property:
+          nullable: false
+          type: string
+        value:
+          $ref: '#/components/schemas/scalarLiteral'
+      type: object
+    spatialExpressions:
+      additionalProperties: true
+      maxProperties: 1
+      minProperties: 1
+      nullable: false
+      properties:
+        contains:
+          $ref: '#/components/schemas/contains'
+        crosses:
+          $ref: '#/components/schemas/crosses'
+        disjoint:
+          $ref: '#/components/schemas/disjoint'
+        equals:
+          $ref: '#/components/schemas/equals'
+        intersects:
+          $ref: '#/components/schemas/intersects'
+        overlaps:
+          $ref: '#/components/schemas/overlaps'
+        touches:
+          $ref: '#/components/schemas/touches'
+        within:
+          $ref: '#/components/schemas/within'
+      type: object
+    spatialOperands:
+      additionalProperties: true
+      maxProperties: 2
+      minProperties: 2
+      nullable: false
+      properties:
+        function:
+          $ref: '#/components/schemas/function'
+        property:
+          nullable: false
+          type: string
+        value:
+          $ref: '#/components/schemas/geometryLiteral'
+      type: object
+    sub:
+      $ref: '#/components/schemas/arithmeticOperands'
+    tcontains:
+      $ref: '#/components/schemas/temporalOperands'
+    temporalExpressions:
+      additionalProperties: true
+      maxProperties: 1
+      minProperties: 1
+      nullable: false
+      properties:
+        after:
+          $ref: '#/components/schemas/after'
+        before:
+          $ref: '#/components/schemas/before'
+        begins:
+          $ref: '#/components/schemas/begins'
+        begunby:
+          $ref: '#/components/schemas/begunby'
+        during:
+          $ref: '#/components/schemas/during'
+        endedby:
+          $ref: '#/components/schemas/endedby'
+        ends:
+          $ref: '#/components/schemas/ends'
+        meets:
+          $ref: '#/components/schemas/meets'
+        metby:
+          $ref: '#/components/schemas/metby'
+        overlappedby:
+          $ref: '#/components/schemas/overlappedby'
+        tcontains:
+          $ref: '#/components/schemas/tcontains'
+        tequals:
+          $ref: '#/components/schemas/tequals'
+        toverlaps:
+          $ref: '#/components/schemas/toverlaps'
+      type: object
+    temporalLiteral:
+      oneOf:
+      - $ref: '#/components/schemas/timeLiteral'
+      - $ref: '#/components/schemas/periodLiteral'
+    temporalOperands:
+      additionalProperties: true
+      maxProperties: 2
+      minProperties: 2
+      nullable: false
+      properties:
+        function:
+          $ref: '#/components/schemas/function'
+        property:
+          nullable: false
+          type: string
+        value:
+          $ref: '#/components/schemas/temporalLiteral'
+      type: object
+    tequals:
+      $ref: '#/components/schemas/temporalOperands'
+    timeLiteral:
+      nullable: false
+      pattern: '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-9][0-9](T[0-2][0-9]:[0-5][0-9]:[0-5][0-9](.[0-9]*)?)?'
+      type: string
+    tintersects:
+      $ref: '#/components/schemas/temporalOperands'
+    touches:
+      $ref: '#/components/schemas/spatialOperands'
+    toverlaps:
+      $ref: '#/components/schemas/temporalOperands'
+    within:
+      $ref: '#/components/schemas/spatialOperands'
+info:
+  contact:
+    email: you@example.org
+    name: Organization Name
+    url: https://pygeoapi.io
+  description: pygeoapi provides an API to geospatial data
+  license:
+    name: CC-BY 4.0 license
+    url: https://creativecommons.org/licenses/by/4.0/
+  termsOfService: https://creativecommons.org/licenses/by/4.0/
+  title: pygeoapi default instance
+  version: 3.0.2
+  x-keywords:
+  - geospatial
+  - data
+  - api
+openapi: 3.0.2
+paths:
+  /:
+    get:
+      description: Landing page
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/LandingPage
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Landing page
+      tags:
+      - server
+  /collections:
+    get:
+      description: Collections
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Collections
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Collections
+      tags:
+      - server
+  /collections/lakes:
+    get:
+      description: lakes of the world, public domain
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Collection
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Get collection metadata
+      tags:
+      - lakes
+  /collections/lakes/items:
+    get:
+      description: lakes of the world, public domain
+      parameters:
+      - &id001
+        description: The optional f parameter indicates the output format which the
+          server shall provide as part of the response document.  The default format
+          is GeoJSON.
+        explode: false
+        in: query
+        name: f
+        required: false
+        schema:
+          default: json
+          enum:
+          - json
+          - html
+          - jsonld
+          - csv
+          type: string
+        style: form
+      - $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/bbox
+      - $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/limit
+      - $ref: '#/components/parameters/sortby'
+      - $ref: '#/components/parameters/startindex'
+      - $ref: '#/components/parameters/filter'
+      - $ref: '#/components/parameters/filter-lang'
+      - explode: false
+        in: query
+        name: id
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: scalerank
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: name
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: name_alt
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: admin
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: featureclass
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Features
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Get Large Lakes items
+      tags:
+      - lakes
+  /collections/lakes/items/{featureId}:
+    get:
+      description: lakes of the world, public domain
+      parameters:
+      - $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/featureId
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Feature
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Get Large Lakes item by id
+      tags:
+      - lakes
+  /collections/lakes/queryables:
+    get:
+      description: lakes of the world, public domain
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: '#/components/responses/Queryables'
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Get Large Lakes queryables
+      tags:
+      - lakes
+  /collections/obs:
+    get:
+      description: My cool observations
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Collection
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Get collection metadata
+      tags:
+      - obs
+  /collections/obs/items:
+    get:
+      description: My cool observations
+      parameters:
+      - *id001
+      - $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/bbox
+      - $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/limit
+      - $ref: '#/components/parameters/sortby'
+      - $ref: '#/components/parameters/startindex'
+      - $ref: '#/components/parameters/filter'
+      - $ref: '#/components/parameters/filter-lang'
+      - explode: false
+        in: query
+        name: id
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: stn_id
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: datetime
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: value
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: lat
+        required: false
+        schema:
+          type: string
+        style: form
+      - explode: false
+        in: query
+        name: long
+        required: false
+        schema:
+          type: string
+        style: form
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Features
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Get Observations items
+      tags:
+      - obs
+  /collections/obs/items/{featureId}:
+    get:
+      description: My cool observations
+      parameters:
+      - $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/parameters/featureId
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/Feature
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Get Observations item by id
+      tags:
+      - obs
+  /collections/obs/queryables:
+    get:
+      description: My cool observations
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: '#/components/responses/Queryables'
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Get Observations queryables
+      tags:
+      - obs
+  /conformance:
+    get:
+      description: API conformance definition
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ConformanceDeclaration
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: API conformance definition
+      tags:
+      - server
+  /openapi:
+    get:
+      description: This document
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: '#/components/responses/200'
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        default:
+          $ref: '#/components/responses/default'
+      summary: This document
+      tags:
+      - server
+  /processes:
+    get:
+      description: Processes
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: '#/components/responses/200'
+        default:
+          $ref: '#/components/responses/default'
+      summary: Processes
+      tags:
+      - server
+  /processes/hello-world:
+    get:
+      description: Hello World process
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: '#/components/responses/200'
+        default:
+          $ref: '#/components/responses/default'
+      summary: Get process metadata
+      tags:
+      - hello-world
+  /processes/hello-world/jobs:
+    get:
+      description: Hello World process
+      responses:
+        200:
+          $ref: '#/components/responses/200'
+        default:
+          $ref: '#/components/responses/default'
+      summary: Retrieve job list for process
+      tags:
+      - hello-world
+    post:
+      description: Hello World process
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            example:
+              inputs:
+              - id: name
+                type: text/plain
+                value: hi there
+            schema:
+              $ref: https://raw.githubusercontent.com/opengeospatial/wps-rest-binding/master/core/openapi/schemas/execute.yaml
+        description: Mandatory execute request JSON
+        required: true
+      responses:
+        200:
+          $ref: '#/components/responses/200'
+        default:
+          $ref: '#/components/responses/default'
+      summary: Process Hello World process execution
+      tags:
+      - hello-world
+  /queryables:
+    get:
+      description: Feature Queryables
+      parameters:
+      - $ref: '#/components/parameters/f'
+      responses:
+        200:
+          $ref: '#/components/responses/Queryables'
+        400:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/InvalidParameter
+        404:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/NotFound
+        500:
+          $ref: http://schemas.opengis.net/ogcapi/features/part1/1.0/openapi/ogcapi-features-1.yaml#/components/responses/ServerError
+      summary: Feature Queryables
+      tags:
+      - server
+  /stac:
+    get:
+      description: SpatioTemporal Asset Catalog
+      parameters: []
+      responses:
+        200:
+          $ref: '#/components/responses/200'
+        default:
+          $ref: '#/components/responses/default'
+      summary: SpatioTemporal Asset Catalog
+      tags:
+      - stac
+servers:
+- description: pygeoapi provides an API to geospatial data
+  url: http://localhost:5000/
+tags:
+- description: pygeoapi provides an API to geospatial data
+  externalDocs:
+    description: information
+    url: http://example.org
+  name: server
+- description: My cool observations
+  name: obs
+- description: lakes of the world, public domain
+  name: lakes
+- description: Hello World process
+  name: hello-world
+
