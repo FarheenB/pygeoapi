@@ -123,8 +123,7 @@ resources:
                 trs: http://www.opengis.net/def/uom/ISO-8601/0/Gregorian
         provider:
             name: CSV
-            # data: tests/data/obs.csv
-            data: data/obs.csv
+            data: tests/data/obs.csv
             id_field: id
             geometry:
                 x_field: long
