@@ -110,6 +110,9 @@ resources:
               value:
                 "@type": schema:Number
                 "@id": schema:QuantitativeValue
+        filters:
+            - cql-text
+            - cql-json
         extents:
             spatial:
                 bbox: [-180,-90,180,90]

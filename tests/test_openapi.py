@@ -66,7 +66,7 @@ def get_test_file_path(filename):
 
 @pytest.fixture()
 def config():
-    with open(get_test_file_path('pygeoapi-test-config.yml')) as fh:
+    with open(get_test_file_path('pygeoapi-test-openapi-config.yml')) as fh:
         return yaml_load(fh)
 
 
