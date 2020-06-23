@@ -66,6 +66,7 @@ def get_test_file_path(filename):
 
 @pytest.fixture()
 def config():
+    #using custom openapi config test file with cql specifications 
     with open(get_test_file_path('pygeoapi-test-openapi-config.yml')) as fh:
         return yaml_load(fh)
 
