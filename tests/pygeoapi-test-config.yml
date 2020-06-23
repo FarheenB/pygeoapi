@@ -126,6 +126,7 @@ resources:
                 x_field: long
                 y_field: lat
 
+
     hello-world:
         type: process
         processor:
