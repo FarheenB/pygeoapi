@@ -212,28 +212,6 @@ def get_oas_30(cfg):
         }
     }
 
-#Added GSoC
-    paths['/queryables'] = {
-        'get': {
-            'summary': 'Feature Queryables',
-            'description': 'Feature Queryables',
-            'tags': ['server'],
-            'parameters': [
-                {'$ref': '#/components/parameters/f'}
-            ],
-            'responses': {
-                200: {
-                    # '$ref': '{}#/components/responses/Collections'.format(OPENAPI_YAML['oapif'])
-                    '$ref': '#/components/responses/Queryables'
-                },  # noqa
-                400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
-                404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
-                500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
-            }
-        }
-    }
-
-
     oas['tags'].append({
         'name': 'server',
         'description': cfg['metadata']['identification']['description'],
@@ -251,44 +229,6 @@ def get_oas_30(cfg):
             'default': {
                'description': 'Unexpected error',
                'content': gen_media_type_object('application/json', 'oapip', 'schemas/exception.yaml')  # noqa
-            },
-            'Queryables': {
-                'description': 'Dataset Querables',
-                'content': {
-                    'application/json': {
-                        'schema': {
-                            '$ref': '#/components/schemas/queryables'
-                        },
-                        'example': {
-                            'queryables': [
-                                {
-                                  'queryable': 'elevation',
-                                  'title': 'Elevation',
-                                  'description': 'The average distance of the road segment above sea level.',
-                                  'type': 'double'
-                                },
-                                {
-                                  'queryable': 'nlanes',
-                                  'title': 'Temperature',
-                                  'description': 'The total number of lanes in all directions.',
-                                  'type': 'integer'
-                                },
-                                {
-                                  'queryable': 'geom',
-                                  'title': 'Segment Geometry',
-                                  'description': 'The geometry of the road segment',
-                                  'type': 'linestring'
-                                },
-                                {
-                                  'queryable': 'name',
-                                  'title': 'Segment Name',
-                                  'description': 'The common name of the road segment.',
-                                  'type': 'string'
-                                }
-                            ]
-                        }
-                    }
-                }
             }
         },
         'parameters': {
@@ -328,36 +268,103 @@ def get_oas_30(cfg):
                 },
                 'style': 'form',
                 'explode': False
-            },
-            'filter': {
-                'description': 'The optional filter parameter to provide filters on the collection items',
-                'explode': False,
-                'in': 'query',
-                'name': 'filter',
-                'required': False,
-                'schema': {
-                    'type': 'string'
-                },
-                'style': 'form'
-            },
-            'filter-lang': {
-                'description': 'The optional parameter to provide filter lang',
-                'explode': False,
-                'in': 'query',
-                'name': 'filter-lang',
-                'required': False,
-                'schema': {
-                    'type': 'string',
-                    'enum': [
-                    'cql-text',
-                    'cql-json'
-                    ],
-                    'default': 'cql-text'
-                },
-                'style': 'form'
             }
-        },
-        'schemas': {
+        }        
+    }
+
+#check whether the provider supports cql filter or not
+    cql_filter_exists=False
+    if 'filters' in cfg['resources']['obs'].keys() :
+        cql_filter_exists=True
+        filter_lang_enum=cfg['resources']['obs']['filters']
+
+#if CQL filter is applicable
+    if cql_filter_exists:
+        paths['/queryables'] = {
+            'get': {
+                'summary': 'Feature Queryables',
+                'description': 'Feature Queryables',
+                'tags': ['server'],
+                'parameters': [
+                    {'$ref': '#/components/parameters/f'}
+                ],
+                'responses': {
+                    200: {
+                        # '$ref': '{}#/components/responses/Collections'.format(OPENAPI_YAML['oapif'])
+                        '$ref': '#/components/responses/Queryables'
+                    },  # noqa
+                    400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
+                }
+            }
+        }
+
+        queryables_response={            
+            'description': 'Dataset Querables',
+            'content': {
+                'application/json': {
+                    'schema': {
+                        '$ref': '#/components/schemas/queryables'
+                    },
+                    'example': {
+                        'queryables': [
+                            {
+                                'queryable': 'elevation',
+                                'title': 'Elevation',
+                                'description': 'The average distance of the road segment above sea level.',
+                                'type': 'double'
+                            },
+                            {
+                                'queryable': 'nlanes',
+                                'title': 'Temperature',
+                                'description': 'The total number of lanes in all directions.',
+                                'type': 'integer'
+                            },
+                            {
+                                'queryable': 'geom',
+                                'title': 'Segment Geometry',
+                                'description': 'The geometry of the road segment',
+                                'type': 'linestring'
+                            },
+                            {
+                                'queryable': 'name',
+                                'title': 'Segment Name',
+                                'description': 'The common name of the road segment.',
+                                'type': 'string'
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        filter_extension={        
+            'description': 'The optional filter parameter to provide filters on the collection items',
+            'explode': False,
+            'in': 'query',
+            'name': 'filter',
+            'required': False,
+            'schema': {
+                'type': 'string'
+            },
+            'style': 'form'
+        }
+        filter_lang_extension= {
+            'description': 'The optional parameter to provide filter lang',
+            'explode': False,
+            'in': 'query',
+            'name': 'filter-lang',
+            'required': False,
+            'schema': {
+                'type': 'string',
+                'enum': filter_lang_enum,
+                'default': 'cql-text'
+            },
+            'style': 'form'
+        }
+        
+        schemas={
             'queryables': {
                 'type': 'object',
                 'required': [
@@ -1089,8 +1096,13 @@ def get_oas_30(cfg):
                 'type': 'object',
                 'additionalProperties': True
             }
-        }        
-    }
+        }
+
+        oas['components']['responses']['Queryables']=queryables_response
+        oas['components']['parameters']['filter-lang']=filter_lang_extension
+        oas['components']['parameters']['filter']=filter_extension
+        oas['components']['schemas']=schemas
+
 
     items_f = deepcopy(oas['components']['parameters']['f'])
     items_f['schema']['enum'].append('csv')
@@ -1145,12 +1157,7 @@ def get_oas_30(cfg):
                     {'$ref': '{}#/components/parameters/bbox'.format(OPENAPI_YAML['oapif'])},  # noqa
                     {'$ref': '{}#/components/parameters/limit'.format(OPENAPI_YAML['oapif'])},  # noqa
                     {'$ref': '#/components/parameters/sortby'},
-                    {'$ref': '#/components/parameters/startindex'},
-                    #added gsoc
-                    {'$ref': '#/components/parameters/filter'},
-                    {'$ref': '#/components/parameters/filter-lang'}
-
-
+                    {'$ref': '#/components/parameters/startindex'}
                 ],
                 'responses': {
                     200: {'$ref': '{}#/components/responses/Features'.format(OPENAPI_YAML['oapif'])},  # noqa
@@ -1161,9 +1168,14 @@ def get_oas_30(cfg):
             }
         }
 
+        if cql_filter_exists:            
+            paths[items_path]['get']['parameters'].append({'$ref': '#/components/parameters/filter'})
+            paths[items_path]['get']['parameters'].append({'$ref': '#/components/parameters/filter-lang'})
+
+
         p = load_plugin('provider', collections[k]['provider'])
 
-        if p.fields:
+        if p.fields and cql_filter_exists:
             queryables_path = '{}/queryables'.format(collection_name_path)
 
             paths[queryables_path] = {
