@@ -76,8 +76,20 @@ def get_oas_30_(config):
     return get_oas_30(config)
 
 
-def test_cql_filters(get_oas_30_):
+def test_cql_filters(get_oas_30_, config):
     """added assertions here for every piece of the openapi document related to CQL extension"""
+
+    assert isinstance(config, dict)
+
+    #assertion for checking for support of filters
+    assert 'filters' in config['resources']['obs']
+
+    import pdb; pdb.set_trace()
+    filters=['cql-text', 'cql-json'] 
+    for filter_lang in filters:
+        assert filter_lang in config['resources']['obs']['filters']
+
+
     assert isinstance(get_oas_30_, dict)
 
     #assertion for get paths
