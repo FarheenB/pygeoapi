@@ -84,7 +84,6 @@ def test_cql_filters(get_oas_30_, config):
     #assertion for checking for support of filters
     assert 'filters' in config['resources']['obs']
 
-    import pdb; pdb.set_trace()
     filters=['cql-text', 'cql-json'] 
     for filter_lang in filters:
         assert filter_lang in config['resources']['obs']['filters']
