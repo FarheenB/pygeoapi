@@ -272,13 +272,159 @@ def get_oas_30(cfg):
         }        
     }
 
-#check whether the provider supports cql filter or not
-    cql_filter_exists=False
-    if 'filters' in cfg['resources']['obs'].keys() :
-        cql_filter_exists=True
-        filter_lang_enum=cfg['resources']['obs']['filters']
+    cql_filter_exists= False
 
-#if CQL filter is applicable
+    items_f = deepcopy(oas['components']['parameters']['f'])
+    items_f['schema']['enum'].append('csv')
+
+    LOGGER.debug('setting up datasets')
+    collections = filter_dict_by_key_value(cfg['resources'],
+                                           'type', 'collection')
+
+    for k, v in collections.items():
+        collection_name_path = '/collections/{}'.format(k)
+        tag = {
+            'name': k,
+            'description': v['description'],
+            'externalDocs': {}
+        }
+        for link in v['links']:
+            if link['type'] == 'information':
+                tag['externalDocs']['description'] = link['type']
+                tag['externalDocs']['url'] = link['url']
+                break
+        if len(tag['externalDocs']) == 0:
+            del tag['externalDocs']
+
+        oas['tags'].append(tag)
+
+        paths[collection_name_path] = {
+            'get': {
+                'summary': 'Get collection metadata'.format(v['title']),  # noqa
+                'description': v['description'],
+                'tags': [k],
+                'parameters': [
+                    {'$ref': '#/components/parameters/f'}
+                ],
+                'responses': {
+                    200: {'$ref': '{}#/components/responses/Collection'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
+                }
+            }
+        }
+
+        items_path = '{}/items'.format(collection_name_path)
+
+        paths[items_path] = {
+            'get': {
+                'summary': 'Get {} items'.format(v['title']),
+                'description': v['description'],
+                'tags': [k],
+                'parameters': [
+                    items_f,
+                    {'$ref': '{}#/components/parameters/bbox'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    {'$ref': '{}#/components/parameters/limit'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    {'$ref': '#/components/parameters/sortby'},
+                    {'$ref': '#/components/parameters/startindex'}
+                ],
+                'responses': {
+                    200: {'$ref': '{}#/components/responses/Features'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
+                }
+            }
+        }
+
+        #if CQL filter available for collection then add filter query parameters 
+        if 'filters' in collections[k] :            
+            paths[items_path]['get']['parameters'].append({'$ref': '#/components/parameters/filter'})
+            paths[items_path]['get']['parameters'].append({'$ref': '#/components/parameters/filter-lang'})
+            cql_filter_exists= True
+
+        p = load_plugin('provider', collections[k]['provider'])
+
+        if p.fields:
+            queryables_path = '{}/queryables'.format(collection_name_path)
+
+            paths[queryables_path] = {
+                'get': {
+                    'summary': 'Get {} queryables'.format(v['title']),
+                    'description': v['description'],
+                    'tags': [k],
+                    'parameters': [
+                        {'$ref': '#/components/parameters/f'}
+                    ],
+                    'responses': {
+                        200: {'$ref': '{}#/components/responses/Features'.format(OPENAPI_YAML['oapif'])},  # noqa
+                        400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
+                        404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
+                        500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
+                    }
+                }
+            }
+
+        if p.time_field is not None:
+            paths[items_path]['get']['parameters'].append(
+                {'$ref': '{}#/components/parameters/datetime'.format(OPENAPI_YAML['oapif'])})  # noqa
+
+        for field, type in p.fields.items():
+
+            if p.properties and field not in p.properties:
+                LOGGER.debug('Provider specified not to advertise property')
+                continue
+
+            if type == 'date':
+                schema = {
+                    'type': 'string',
+                    'format': 'date'
+                }
+            elif type == 'float':
+                schema = {
+                    'type': 'number',
+                    'format': 'float'
+                }
+            elif type == 'long':
+                schema = {
+                    'type': 'integer',
+                    'format': 'int64'
+                }
+            else:
+                schema = {
+                    'type': type
+                }
+
+            path_ = '{}/items'.format(collection_name_path)
+            paths['{}'.format(path_)]['get']['parameters'].append({
+                'name': field,
+                'in': 'query',
+                'required': False,
+                'schema': schema,
+                'style': 'form',
+                'explode': False
+            })
+
+        paths['{}/items/{{featureId}}'.format(collection_name_path)] = {
+            'get': {
+                'summary': 'Get {} item by id'.format(v['title']),
+                'description': v['description'],
+                'tags': [k],
+                'parameters': [
+                    {'$ref': '{}#/components/parameters/featureId'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    {'$ref': '#/components/parameters/f'}
+                ],
+                'responses': {
+                    200: {'$ref': '{}#/components/responses/Feature'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
+                    500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
+                }
+            }
+        }
+
+    #if CQL filter is applicable
     if cql_filter_exists:
         paths['/queryables'] = {
             'get': {
@@ -338,6 +484,7 @@ def get_oas_30(cfg):
                 }
             }
         }
+        filter_lang_enum=['cql-text', 'cql-json']
 
         filter_extension={        
             'description': 'The optional filter parameter to provide filters on the collection items',
@@ -1102,159 +1249,6 @@ def get_oas_30(cfg):
         oas['components']['parameters']['filter-lang']=filter_lang_extension
         oas['components']['parameters']['filter']=filter_extension
         oas['components']['schemas']=schemas
-
-
-    items_f = deepcopy(oas['components']['parameters']['f'])
-    items_f['schema']['enum'].append('csv')
-
-    LOGGER.debug('setting up datasets')
-    collections = filter_dict_by_key_value(cfg['resources'],
-                                           'type', 'collection')
-
-    for k, v in collections.items():
-        collection_name_path = '/collections/{}'.format(k)
-        tag = {
-            'name': k,
-            'description': v['description'],
-            'externalDocs': {}
-        }
-        for link in v['links']:
-            if link['type'] == 'information':
-                tag['externalDocs']['description'] = link['type']
-                tag['externalDocs']['url'] = link['url']
-                break
-        if len(tag['externalDocs']) == 0:
-            del tag['externalDocs']
-
-        oas['tags'].append(tag)
-
-        paths[collection_name_path] = {
-            'get': {
-                'summary': 'Get collection metadata'.format(v['title']),  # noqa
-                'description': v['description'],
-                'tags': [k],
-                'parameters': [
-                    {'$ref': '#/components/parameters/f'}
-                ],
-                'responses': {
-                    200: {'$ref': '{}#/components/responses/Collection'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
-                }
-            }
-        }
-
-        items_path = '{}/items'.format(collection_name_path)
-
-        paths[items_path] = {
-            'get': {
-                'summary': 'Get {} items'.format(v['title']),
-                'description': v['description'],
-                'tags': [k],
-                'parameters': [
-                    items_f,
-                    {'$ref': '{}#/components/parameters/bbox'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    {'$ref': '{}#/components/parameters/limit'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    {'$ref': '#/components/parameters/sortby'},
-                    {'$ref': '#/components/parameters/startindex'}
-                ],
-                'responses': {
-                    200: {'$ref': '{}#/components/responses/Features'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
-                }
-            }
-        }
-
-        if cql_filter_exists:            
-            paths[items_path]['get']['parameters'].append({'$ref': '#/components/parameters/filter'})
-            paths[items_path]['get']['parameters'].append({'$ref': '#/components/parameters/filter-lang'})
-
-
-        p = load_plugin('provider', collections[k]['provider'])
-
-        if p.fields and cql_filter_exists:
-            queryables_path = '{}/queryables'.format(collection_name_path)
-
-            paths[queryables_path] = {
-                'get': {
-                    'summary': 'Get {} queryables'.format(v['title']),
-                    'description': v['description'],
-                    'tags': [k],
-                    'parameters': [
-                        {'$ref': '#/components/parameters/f'}
-                    ],
-                    'responses': {
-                        # 200: {'$ref': '{}#/components/responses/Features'.format(OPENAPI_YAML['oapif'])},  # noqa
-                        200: {
-                         '$ref': '#/components/responses/Queryables'
-                        },
-                        400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
-                        404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
-                        500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
-                    }
-                }
-            }
-
-        if p.time_field is not None:
-            paths[items_path]['get']['parameters'].append(
-                {'$ref': '{}#/components/parameters/datetime'.format(OPENAPI_YAML['oapif'])})  # noqa
-
-        for field, type in p.fields.items():
-
-            if p.properties and field not in p.properties:
-                LOGGER.debug('Provider specified not to advertise property')
-                continue
-
-            if type == 'date':
-                schema = {
-                    'type': 'string',
-                    'format': 'date'
-                }
-            elif type == 'float':
-                schema = {
-                    'type': 'number',
-                    'format': 'float'
-                }
-            elif type == 'long':
-                schema = {
-                    'type': 'integer',
-                    'format': 'int64'
-                }
-            else:
-                schema = {
-                    'type': type
-                }
-
-            path_ = '{}/items'.format(collection_name_path)
-            paths['{}'.format(path_)]['get']['parameters'].append({
-                'name': field,
-                'in': 'query',
-                'required': False,
-                'schema': schema,
-                'style': 'form',
-                'explode': False
-            })
-
-        paths['{}/items/{{featureId}}'.format(collection_name_path)] = {
-            'get': {
-                'summary': 'Get {} item by id'.format(v['title']),
-                'description': v['description'],
-                'tags': [k],
-                'parameters': [
-                    {'$ref': '{}#/components/parameters/featureId'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    {'$ref': '#/components/parameters/f'}
-                ],
-                'responses': {
-                    200: {'$ref': '{}#/components/responses/Feature'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    404: {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
-                    500: {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
-                }
-            }
-        }
 
     LOGGER.debug('setting up STAC')
     paths['/stac'] = {
