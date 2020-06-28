@@ -269,10 +269,10 @@ def get_oas_30(cfg):
                 'style': 'form',
                 'explode': False
             }
-        }        
+        }
     }
 
-    cql_filter_exists= False
+    cql_filter_exists = False
 
     items_f = deepcopy(oas['components']['parameters']['f'])
     items_f['schema']['enum'].append('csv')
@@ -338,11 +338,13 @@ def get_oas_30(cfg):
             }
         }
 
-        #if CQL filter available for collection then add filter query parameters 
-        if 'filters' in collections[k] :            
-            paths[items_path]['get']['parameters'].append({'$ref': '#/components/parameters/filter'})
-            paths[items_path]['get']['parameters'].append({'$ref': '#/components/parameters/filter-lang'})
-            cql_filter_exists= True
+        # if CQL filter available for collection
+        if 'filters' in collections[k]:
+            paths[items_path]['get']['parameters'].\
+                append({'$ref': '#/components/parameters/filter'})
+            paths[items_path]['get']['parameters'].\
+                append({'$ref': '#/components/parameters/filter-lang'})
+            cql_filter_exists = True
 
         p = load_plugin('provider', collections[k]['provider'])
 
@@ -424,7 +426,7 @@ def get_oas_30(cfg):
             }
         }
 
-    #if CQL filter is applicable
+    # if CQL filter is applicable
     if cql_filter_exists:
         paths['/queryables'] = {
             'get': {
@@ -436,7 +438,6 @@ def get_oas_30(cfg):
                 ],
                 'responses': {
                     200: {
-                        # '$ref': '{}#/components/responses/Collections'.format(OPENAPI_YAML['oapif'])
                         '$ref': '#/components/responses/Queryables'
                     },  # noqa
                     400: {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
@@ -446,7 +447,7 @@ def get_oas_30(cfg):
             }
         }
 
-        queryables_response={            
+        queryables_response = {
             'description': 'Dataset Querables',
             'content': {
                 'application/json': {
@@ -458,25 +459,25 @@ def get_oas_30(cfg):
                             {
                                 'queryable': 'elevation',
                                 'title': 'Elevation',
-                                'description': 'The average distance of the road segment above sea level.',
+                                'description': 'The average distance of the road segment above sea level.', # noqa
                                 'type': 'double'
                             },
                             {
                                 'queryable': 'nlanes',
                                 'title': 'Temperature',
-                                'description': 'The total number of lanes in all directions.',
+                                'description': 'The total number of lanes in all directions.', # noqa
                                 'type': 'integer'
                             },
                             {
                                 'queryable': 'geom',
                                 'title': 'Segment Geometry',
-                                'description': 'The geometry of the road segment',
+                                'description': 'The geometry of the road segment', # noqa
                                 'type': 'linestring'
                             },
                             {
                                 'queryable': 'name',
                                 'title': 'Segment Name',
-                                'description': 'The common name of the road segment.',
+                                'description': 'The common name of the road segment.', # noqa
                                 'type': 'string'
                             }
                         ]
@@ -484,10 +485,10 @@ def get_oas_30(cfg):
                 }
             }
         }
-        filter_lang_enum=['cql-text', 'cql-json']
+        filter_lang_enum = ['cql-text', 'cql-json']
 
-        filter_extension={        
-            'description': 'The optional filter parameter to provide filters on the collection items',
+        filter_extension = {
+            'description': 'The optional filter parameter to provide filters on the collection items', # noqa
             'explode': False,
             'in': 'query',
             'name': 'filter',
@@ -497,7 +498,7 @@ def get_oas_30(cfg):
             },
             'style': 'form'
         }
-        filter_lang_extension= {
+        filter_lang_extension = {
             'description': 'The optional parameter to provide filter lang',
             'explode': False,
             'in': 'query',
@@ -510,8 +511,8 @@ def get_oas_30(cfg):
             },
             'style': 'form'
         }
-        
-        schemas={
+
+        schemas = {
             'queryables': {
                 'type': 'object',
                 'required': [
@@ -528,30 +529,30 @@ def get_oas_30(cfg):
                             ],
                             'properties': {
                                 'queryable': {
-                                    'description': 'the token that may be used in a CQL predicate',
+                                    'description': 'the token that may be used in a CQL predicate', # noqa
                                     'type': 'string'
                                 },
                                 'title': {
-                                    'description': 'a human readble title for the queryable',
+                                    'description': 'a human readble title for the queryable', # noqa
                                     'type': 'string'
                                 },
                                 'description': {
-                                    'description': 'a human-readable narrative describing the queryable',
+                                    'description': 'a human-readable narrative describing the queryable', # noqa
                                     'type': 'string'
                                 },
                                 'language': {
-                                    'description': 'the language used for the title and description',
+                                    'description': 'the language used for the title and description', # noqa
                                     'type': 'string',
                                     'default': [
                                         'en'
                                     ]
                                 },
                                 'type': {
-                                    'description': 'the data type of the queryable',
+                                    'description': 'the data type of the queryable', # noqa
                                     'type': 'string'
                                 },
                                 'type-ref': {
-                                    'description': 'a reference to the formal definition of the type',
+                                    'description': 'a reference to the formal definition of the type', # noqa
                                     'type': 'string',
                                     'format': 'url'
                                 }
@@ -1028,7 +1029,7 @@ def get_oas_30(cfg):
                                     'type': 'boolean'
                                 },
                                 {
-                                    '$ref': '#/components/schemas/functionObjectArgument'
+                                    '$ref': '#/components/schemas/functionObjectArgument' # noqa
                                 }
                             ]
                         },
@@ -1127,7 +1128,7 @@ def get_oas_30(cfg):
                 ]
             },
             'timeLiteral': {
-                'pattern': '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-9][0-9](T[0-2][0-9]:[0-5][0-9]:[0-5][0-9](.[0-9]*)?)?',
+                'pattern': '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-9][0-9](T[0-2][0-9]:[0-5][0-9]:[0-5][0-9](.[0-9]*)?)?', # noqa
                 'nullable': False,
                 'type': 'string'
             },
@@ -1226,7 +1227,7 @@ def get_oas_30(cfg):
                     },
                     'capabilities': {
                         'items': {
-                            '$ref': '#/components/schemas/capabilities-assertion'
+                            '$ref': '#/components/schemas/capabilities-assertion' # noqa
                         },
                         'nullable': False,
                         'type': 'array'
@@ -1245,10 +1246,10 @@ def get_oas_30(cfg):
             }
         }
 
-        oas['components']['responses']['Queryables']=queryables_response
-        oas['components']['parameters']['filter-lang']=filter_lang_extension
-        oas['components']['parameters']['filter']=filter_extension
-        oas['components']['schemas']=schemas
+        oas['components']['responses']['Queryables'] = queryables_response
+        oas['components']['parameters']['filter-lang'] = filter_lang_extension
+        oas['components']['parameters']['filter'] = filter_extension
+        oas['components']['schemas'] = schemas
 
     LOGGER.debug('setting up STAC')
     paths['/stac'] = {
