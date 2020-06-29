@@ -268,7 +268,7 @@ filter expression always evaluates to true or false. If the expression evaluates
 the expression and is marked as being in the result set. If the overall filter expression evaluates to false, the data instance
 is not in the result set.
 
-This section is implemented at collection level and based on `OGC API - Features - Part 3: Common Query Language <http://docs.opengeospatial.org/DRAFTS/19-079.html>` document that
+This section is implemented at collection level and based on `OGC API - Features - Part 3: Common Query Language <http://docs.opengeospatial.org/DRAFTS/19-079.html>`_ document that
 defines the schema for a JSON document and exposes the set of properties or keys that are used to construct CQL expressions for
 pygeoapi.
 
