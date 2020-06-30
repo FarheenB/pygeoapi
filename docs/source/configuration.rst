@@ -272,7 +272,19 @@ This section is implemented at collection level and based on `OGC API - Features
 defines the schema for a JSON document and exposes the set of properties or keys that are used to construct CQL expressions for
 pygeoapi.
 
+CQL filter extension can be enabled for a resource by adding ``filters`` section to the configuration of a resource in pygeoapi config file.
 
+The default pygeoapi configuration for CQL extension includes an example for the obs sample dataset:
+
+.. code-block:: yaml
+
+    resources:
+        obs:
+            filters:
+                - cql-text
+                - cql-json
+
+    
 Summary
 -------
 
