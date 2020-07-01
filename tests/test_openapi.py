@@ -56,7 +56,13 @@ def test_str2bool():
 
 
 def get_test_file_path(filename):
-    """helper function to open test file safely"""
+    """
+    Helper function to open test file safely
+
+    :param filename: file path
+
+    :returns: corrected file path
+    """
 
     if os.path.isfile(filename):
         return filename
@@ -66,20 +72,35 @@ def get_test_file_path(filename):
 
 @pytest.fixture()
 def config():
-    # using custom openapi config test file with cql specifications
+    """
+    Get the OpenAPI Document configuration
+
+    :returns: OpenAPI configuration YAML dict
+    """
     with open(get_test_file_path('pygeoapi-test-openapi-config.yml')) as fh:
         return yaml_load(fh)
 
 
 @pytest.fixture()
 def get_oas_30_(config):
+    """
+    Get the generated OpenAPI 3.0 Document
+
+    :param config: configuration object
+
+    :returns: OpenAPI definition YAML dict
+    """
     return get_oas_30(config)
 
 
 def test_cql_filters(get_oas_30_, config):
-    """added assertions here for every piece of the openapi document
-    related to CQL extension """
+    """
+    Added assertions CQL extension in OpenAPI 3.0 Document
 
+    :param config: configuration object
+    :param config: OpenAPI 3.0 Document object
+
+    """
     assert isinstance(config, dict)
 
     cql_filter_exists = False
