@@ -64,11 +64,9 @@ def get_ogc_schemas_location(server_config):
 def gen_media_type_object(media_type, api_type, path):
     """
     Generates an OpenAPI Media Type Object
-
     :param media_type: MIME type
     :param api_type: OGC API type
     :param path: local path of OGC API parameter or schema definition
-
     :returns: `dict` of media type object
     """
 
@@ -89,11 +87,9 @@ def gen_media_type_object(media_type, api_type, path):
 def gen_response_object(description, media_type, api_type, path):
     """
     Generates an OpenAPI Response Object
-
     :param description: text description of response
     :param media_type: MIME type
     :param api_type: OGC API type
-
     :returns: `dict` of response object
     """
 
@@ -108,9 +104,7 @@ def gen_response_object(description, media_type, api_type, path):
 def get_oas_30(cfg):
     """
     Generates an OpenAPI 3.0 Document
-
     :param cfg: configuration object
-
     :returns: OpenAPI definition YAML dict
     """
 
@@ -238,6 +232,16 @@ def get_oas_30(cfg):
             'default': {
                 'description': 'Unexpected error',
                 'content': gen_media_type_object('application/json', 'oapip', 'schemas/exception.yaml')  # noqa
+            },
+            'Queryables': {
+                'description': 'Dataset Querables',
+                'content': {
+                    'application/json': {
+                        'schema': {
+                            '$ref': '#/components/schemas/queryables'
+                        }
+                    }
+                }
             }
         },
         'parameters': {
@@ -277,6 +281,56 @@ def get_oas_30(cfg):
                 },
                 'style': 'form',
                 'explode': False
+            }
+        },
+        'schemas': {
+            'queryables': {
+                'type': 'object',
+                'required': [
+                    'queryables'
+                ],
+                'properties': {
+                    'queryables': {
+                        'type': 'array',
+                        'items': {
+                            'type': 'object',
+                            'required': [
+                                'queryable',
+                                'type'
+                            ],
+                            'properties': {
+                                'queryable': {
+                                    'description': 'the token that may be used in a CQL predicate', # noqa
+                                    'type': 'string'
+                                },
+                                'title': {
+                                    'description': 'a human readble title for the queryable', # noqa
+                                    'type': 'string'
+                                },
+                                'description': {
+                                    'description': 'a human-readable narrative describing the queryable', # noqa
+                                    'type': 'string'
+                                },
+                                'language': {
+                                    'description': 'the language used for the title and description', # noqa
+                                    'type': 'string',
+                                    'default': [
+                                        'en'
+                                    ]
+                                },
+                                'type': {
+                                    'description': 'the data type of the queryable', # noqa
+                                    'type': 'string'
+                                },
+                                'type-ref': {
+                                    'description': 'a reference to the formal definition of the type', # noqa
+                                    'type': 'string',
+                                    'format': 'url'
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -372,7 +426,7 @@ def get_oas_30(cfg):
                         {'$ref': '#/components/parameters/f'}
                     ],
                     'responses': {
-                        '200': {'$ref': '{}#/components/responses/Features'.format(OPENAPI_YAML['oapif'])},  # noqa
+                        '200': {'$ref': '#/components/responses/Queryables'},  # noqa
                         '400': {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
                         '404': {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
                         '500': {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
@@ -450,9 +504,7 @@ def get_oas_30(cfg):
                     {'$ref': '#/components/parameters/f'}
                 ],
                 'responses': {
-                    '200': {
-                        '$ref': '#/components/responses/Queryables'
-                    },  # noqa
+                    '200': {'$ref': '#/components/responses/Queryables'},  # noqa
                     '400': {'$ref': '{}#/components/responses/InvalidParameter'.format(OPENAPI_YAML['oapif'])},  # noqa
                     '404': {'$ref': '{}#/components/responses/NotFound'.format(OPENAPI_YAML['oapif'])},  # noqa
                     '500': {'$ref': '{}#/components/responses/ServerError'.format(OPENAPI_YAML['oapif'])}  # noqa
@@ -460,44 +512,6 @@ def get_oas_30(cfg):
             }
         }
 
-        queryables_response = {
-            'description': 'Dataset Querables',
-            'content': {
-                'application/json': {
-                    'schema': {
-                        '$ref': '#/components/schemas/queryables'
-                    },
-                    'example': {
-                        'queryables': [
-                            {
-                                'queryable': 'elevation',
-                                'title': 'Elevation',
-                                'description': 'The average distance of the road segment above sea level.', # noqa
-                                'type': 'double'
-                            },
-                            {
-                                'queryable': 'nlanes',
-                                'title': 'Temperature',
-                                'description': 'The total number of lanes in all directions.', # noqa
-                                'type': 'integer'
-                            },
-                            {
-                                'queryable': 'geom',
-                                'title': 'Segment Geometry',
-                                'description': 'The geometry of the road segment', # noqa
-                                'type': 'linestring'
-                            },
-                            {
-                                'queryable': 'name',
-                                'title': 'Segment Name',
-                                'description': 'The common name of the road segment.', # noqa
-                                'type': 'string'
-                            }
-                        ]
-                    }
-                }
-            }
-        }
         filter_lang_enum = ['cql-text', 'cql-json']
 
         filter_extension = {
@@ -511,6 +525,7 @@ def get_oas_30(cfg):
             },
             'style': 'form'
         }
+
         filter_lang_extension = {
             'description': 'The optional parameter to provide filter lang',
             'explode': False,
@@ -525,55 +540,7 @@ def get_oas_30(cfg):
             'style': 'form'
         }
 
-        schemas = {
-            'queryables': {
-                'type': 'object',
-                'required': [
-                    'queryables'
-                ],
-                'properties': {
-                    'queryables': {
-                        'type': 'array',
-                        'items': {
-                            'type': 'object',
-                            'required': [
-                                'queryable',
-                                'type'
-                            ],
-                            'properties': {
-                                'queryable': {
-                                    'description': 'the token that may be used in a CQL predicate', # noqa
-                                    'type': 'string'
-                                },
-                                'title': {
-                                    'description': 'a human readble title for the queryable', # noqa
-                                    'type': 'string'
-                                },
-                                'description': {
-                                    'description': 'a human-readable narrative describing the queryable', # noqa
-                                    'type': 'string'
-                                },
-                                'language': {
-                                    'description': 'the language used for the title and description', # noqa
-                                    'type': 'string',
-                                    'default': [
-                                        'en'
-                                    ]
-                                },
-                                'type': {
-                                    'description': 'the data type of the queryable', # noqa
-                                    'type': 'string'
-                                },
-                                'type-ref': {
-                                    'description': 'a reference to the formal definition of the type', # noqa
-                                    'type': 'string',
-                                    'format': 'url'
-                                }
-                            }
-                        }
-                    }
-                }
-            },
+        cql_schemas = {
             'predicates': {
                 'allOf': [
                     {
@@ -1259,10 +1226,9 @@ def get_oas_30(cfg):
             }
         }
 
-        oas['components']['responses']['Queryables'] = queryables_response
         oas['components']['parameters']['filter-lang'] = filter_lang_extension
         oas['components']['parameters']['filter'] = filter_extension
-        oas['components']['schemas'] = schemas
+        oas['components']['schemas'].update(cql_schemas)
 
     LOGGER.debug('setting up STAC')
     paths['/stac'] = {
@@ -1379,10 +1345,8 @@ def get_oas_30(cfg):
 def get_oas(cfg, version='3.0'):
     """
     Stub to generate OpenAPI Document
-
     :param cfg: configuration object
     :param version: version of OpenAPI (default 3.0)
-
     :returns: OpenAPI definition YAML dict
     """
 

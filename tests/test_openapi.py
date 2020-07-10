@@ -76,8 +76,8 @@ def config():
     Get the OpenAPI Document configuration
     :returns: OpenAPI configuration YAML dict
     """
-    with open(get_test_file_path('pygeoapi-test-openapi-config.yml')) as fh:
-        return yaml_load(fh)
+    with open(get_test_file_path('pygeoapi-test-openapi-config.yml')) as config_file: # noqa
+        return yaml_load(config_file)
 
 
 @pytest.fixture()
@@ -91,22 +91,31 @@ def get_oas_30_(config):
 
 
 @pytest.fixture()
-def is_cql(config):
+def get_collections(config):
     """
-    Checks whether any resource supports feature filter
+    Get the collection resources from config file
     :param config: configuration object
-    :returns: Boolean value
+    :returns: list of collection objects
     """
-    collections = filter_dict_by_key_value(config['resources'],
-                                           'type', 'collection')
-    for k, _ in collections.items():
-        if 'filters' in collections[k]:
+    collections = filter_dict_by_key_value(config['resources'], 'type', 'collection') # noqa
+    return collections
+
+
+@pytest.fixture()
+def is_cql(get_collections):
+    """
+    Checks whether any colelction resource supports feature filter
+    :param get_collections: collection object
+    :returns: boolean value
+    """
+    for k, _ in get_collections.items():
+        if 'filters' in get_collections[k]:
             return True
     return False
 
 
 @pytest.fixture()
-def cql_components(get_oas_30_):
+def get_cql_components(get_oas_30_):
     """
     Get the generated OpenAPI 3.0 Document
     :param get_oas_30_: OpenAPI 3.0 Document object
@@ -117,156 +126,58 @@ def cql_components(get_oas_30_):
 
 
 @pytest.fixture()
-def cql_schemas(cql_components):
+def get_cql_schemas(get_cql_components):
     """
     Get the schemas from OpenAPI 3.0 Document
-    :param cql_components: OpenAPI 3.0 Document components object
+    :param get_cql_components: OpenAPI 3.0 Document components object
     :returns: OpenAPI Document schemas YAML dict
     """
-    openapi_schemas = cql_components.get('schemas', None)
+    openapi_schemas = get_cql_components.get('schemas', None)
     return openapi_schemas
 
 
-@pytest.fixture()
-def cql_parameters(cql_components):
+def test_cql_paths(config, get_oas_30_, get_collections, is_cql):
     """
-    Get the parameters from OpenAPI 3.0 Document
-    :param cql_components: OpenAPI 3.0 Document components object
-    :returns: OpenAPI Document parameters YAML dict
-    """
-    openapi_parameters = cql_components.get('parameters', None)
-    return openapi_parameters
-
-
-@pytest.fixture()
-def cql_responses(cql_components):
-    """
-    Get the responses from OpenAPI 3.0 Document
-    :param cql_components: OpenAPI 3.0 Document components object
-    :returns: OpenAPI Document responses YAML dict
-    """
-    openapi_responses = cql_components.get('responses', None)
-    return openapi_responses
-
-
-@pytest.fixture()
-def cql_paths(get_oas_30_):
-    """
-    Get the paths from OpenAPI 3.0 Document
-    :param get_oas_30_: OpenAPI 3.0 Document object
-    :returns: OpenAPI Document paths YAML dict
-    """
-    openapi_paths = get_oas_30_.get('paths', None)
-    return openapi_paths
-
-
-def test_dict(config, get_oas_30_):
-    """
-    Added assertions for YAML dictionaries
+    Assertions for CQL paths in OpenAPI 3.0 Document
     :param config: configuration object
     :param get_oas_30_: OpenAPI 3.0 Document object
+    :param get_collections: collection object
+    :param is_cql: boolean value
     """
     assert isinstance(config, dict)
     assert isinstance(get_oas_30_, dict)
 
+    cql_paths = get_oas_30_.get('paths', None)
+    # assertion for get paths
+    assert cql_paths is not None
 
-def test_cql_filters(is_cql, cql_components, cql_responses,
-                     cql_parameters, cql_schemas):
-    """
-    Assertions for CQL extension in OpenAPI 3.0 Document
-    :param is_cql: boolean value
-    :param cql_components: OpenAPI 3.0 Document components
-    :param cql_responses: OpenAPI 3.0 Document responses
-    :param cql_parameters: OpenAPI 3.0 Document responses
-    :param cql_schemas: OpenAPI 3.0 Document responses
-    """
     if is_cql:
-        # assertion for components
-        assert cql_components is not None
 
-        # assertion for responses
-        assert cql_responses is not None
-
-        # assertion for parameters
-        assert cql_parameters is not None
-
-        # assertion for cql schemas
-        assert cql_schemas is not None
-
-
-def test_cql_paths(config, cql_paths, is_cql):
-    """
-    Assertions for CQL paths in OpenAPI 3.0 Document
-    :param config: configuration object
-    :param cql_paths: OpenAPI 3.0 Document paths
-    :param is_cql: boolean value
-    """
-    if is_cql:
-        # assertion for get paths
-        assert cql_paths is not None
-
-        # assertion for queryables paths
-        assert '/queryables' in cql_paths is not None
-
-        assert isinstance(cql_paths['/queryables'], dict)
-
-        collections = filter_dict_by_key_value(config['resources'],
-                                               'type', 'collection')
-
-        for k, _ in collections.items():
-            if 'filters' in collections[k]:
-                references = []
-                for items_parameters in \
-                        cql_paths['/collections/' + k +
-                                  '/items']['get']['parameters']:
-
-                    if '$ref' in items_parameters:
-                        references.append(items_parameters['$ref'])
-
-                assert '#/components/parameters/filter' in references is not None # noqa
-                assert '#/components/parameters/filter-lang' in references is not None # noqa
-
-            assert isinstance(cql_paths['/collections/'+k+'/queryables'], dict)
-
-            # assertion for queryables path attributes
-            get_path_attributes = ['summary', 'description', 'tags',
-                                   'parameters', 'responses']
-            for get_path_attribute in get_path_attributes:
-                assert get_path_attribute in cql_paths['/queryables']['get']
-                assert get_path_attribute in \
-                    cql_paths['/collections/'+k+'/queryables']['get']
-
-            # assertion for queryables response attributes
-            responses = ['200', '400', '404', '500']
-            for response in responses:
-                assert response in cql_paths['/queryables']['get']['responses']
-                assert response in \
-                    cql_paths['/collections/' + k +
-                              '/queryables']['get']['responses']
+        for k, _ in get_collections.items():
+            references = []
+            for items_parameters in cql_paths['/collections/'+k+'/items']['get']['parameters']: # noqa
+                if '$ref' in items_parameters:
+                    references.append(items_parameters['$ref'])
+            # if the resource support filter
+            if 'filters' in get_collections[k]:
+                assert '#/components/parameters/filter' in references # noqa
+                assert '#/components/parameters/filter-lang' in references  # noqa
+            # if the resource does not support filter
+            else:
+                assert '#/components/parameters/filter' not in references # noqa
+                assert '#/components/parameters/filter-lang' not in references  # noqa
 
 
-def test_cql_queryables(cql_responses, cql_schemas, is_cql):
-    """
-    Assertions for CQL queryables in OpenAPI 3.0 Document
-    :param cql_responses: OpenAPI 3.0 Document responses
-    :param cql_schemas: OpenAPI 3.0 Document schemas
-    :param is_cql: boolean value
-    """
-    if is_cql:
-        # assertion for Queryables response
-        assert 'Queryables' in cql_responses is not None
-
-        # assertion for queryables schema
-        assert 'queryables' in cql_schemas is not None
-
-
-def test_cql_filters_parameters(cql_parameters, is_cql):
+def test_cql_filters_parameters(get_cql_components, is_cql):
     """
     Assertions for CQL parameters in OpenAPI 3.0 Document
-    :param cql_parameters: OpenAPI 3.0 Document parameters
+    :param get_cql_components: OpenAPI 3.0 Document components
     :param is_cql: boolean value
     """
     if is_cql:
+
+        cql_parameters = get_cql_components.get('parameters', None)
+
         # assertion for filter-lang parameter
         openapi_filter_lang = cql_parameters.get('filter-lang', None)
         assert openapi_filter_lang is not None
@@ -299,90 +210,90 @@ def test_cql_filters_parameters(cql_parameters, is_cql):
         assert openapi_filter['schema']['type'] == 'string'
 
 
-def test_cql_filters_logical_expressions(cql_schemas, is_cql):
+def test_cql_filters_logical_expressions(get_cql_schemas, is_cql):
     """
     Assertions for CQL logical expressions schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for logical expressions
-        assert 'logicalExpression' in cql_schemas is not None
-        assert cql_schemas.get('logicalExpression') is not None
+        assert 'logicalExpression' in get_cql_schemas is not None
+        assert get_cql_schemas.get('logicalExpression') is not None
 
         logical_expressions = ['and', 'or', 'not']
         for logical_expression in logical_expressions:
             assert logical_expression in \
-                   cql_schemas['logicalExpression']['properties']
+                   get_cql_schemas['logicalExpression']['properties']
 
         # assertion for the definition of different logical expressions
         for logical_expression in logical_expressions:
-            assert logical_expression in cql_schemas is not None
+            assert logical_expression in get_cql_schemas is not None
 
 
-def test_cql_filters_comparison_expressions(cql_schemas, is_cql):
+def test_cql_filters_comparison_expressions(get_cql_schemas, is_cql):
     """
     Assertions for CQL comparison expressions schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for comparison expressions
-        assert 'comparisonExpressions' in cql_schemas is not None
-        assert cql_schemas.get('comparisonExpressions', None) is not None
+        assert 'comparisonExpressions' in get_cql_schemas is not None
+        assert get_cql_schemas.get('comparisonExpressions', None) is not None
 
         comparison_expressions = ['eq', 'lt', 'gt', 'lte', 'gte',
                                   'between', 'like', 'in']
         for comparison_expression in comparison_expressions:
             assert comparison_expression in \
-                   cql_schemas['comparisonExpressions']['properties']
+                   get_cql_schemas['comparisonExpressions']['properties']
 
         # assertion for the definition of different comparison expressions
         for comparison_expression in comparison_expressions:
-            assert comparison_expression in cql_schemas is not None
+            assert comparison_expression in get_cql_schemas is not None
 
 
-def test_cql_filters_spatial_expressions(cql_schemas, is_cql):
+def test_cql_filters_spatial_expressions(get_cql_schemas, is_cql):
     """
     Assertions for CQL spatial expressions schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for spatial expressions
-        assert 'spatialExpressions' in cql_schemas is not None
-        assert cql_schemas.get('spatialExpressions', None) is not None
+        assert 'spatialExpressions' in get_cql_schemas is not None
+        assert get_cql_schemas.get('spatialExpressions', None) is not None
 
         spatial_expressions = ['equals', 'disjoint', 'touches',
                                'within', 'overlaps', 'crosses',
                                'intersects', 'contains']
         for spatial_expression in spatial_expressions:
             assert spatial_expression in \
-                   cql_schemas['spatialExpressions']['properties']
+                   get_cql_schemas['spatialExpressions']['properties']
 
         # assertion for the definition of different spatial expressions
         for spatial_expression in spatial_expressions:
-            assert spatial_expression in cql_schemas is not None
+            assert spatial_expression in get_cql_schemas is not None
 
         # assertion for spatial operands
-        assert 'spatialOperands' in cql_schemas is not None
-        assert cql_schemas.get('spatialOperands', None) is not None
+        assert 'spatialOperands' in get_cql_schemas is not None
+        assert get_cql_schemas.get('spatialOperands', None) is not None
 
         spatial_operands = ['property', 'function', 'value']
         for props in spatial_operands:
-            assert props in cql_schemas['spatialOperands']['properties']
+            assert props in get_cql_schemas['spatialOperands']['properties']
 
 
-def test_cql_filters_temporal_expressions(cql_schemas, is_cql):
+def test_cql_filters_temporal_expressions(get_cql_schemas, is_cql):
     """
     Assertions for CQL temporal expressions schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for temporal expressions
-        assert 'temporalExpressions' in cql_schemas is not None
-        assert cql_schemas.get('temporalExpressions', None) is not None
+        assert 'temporalExpressions' in get_cql_schemas is not None
+        assert get_cql_schemas.get('temporalExpressions', None) is not None
 
         temporal_expressions = ['after', 'before', 'begins', 'begunby',
                                 'tcontains', 'during', 'endedby', 'ends',
@@ -390,146 +301,297 @@ def test_cql_filters_temporal_expressions(cql_schemas, is_cql):
                                 'overlappedby']
         for temporal_expression in temporal_expressions:
             assert temporal_expression in \
-                   cql_schemas['temporalExpressions']['properties']
+                   get_cql_schemas['temporalExpressions']['properties']
 
         # assertion for the definition of different temporal expressions
         for temporal_expression in temporal_expressions:
-            assert temporal_expression in cql_schemas is not None
+            assert temporal_expression in get_cql_schemas is not None
 
         # assertion for temporal operands
-        assert 'temporalOperands' in cql_schemas is not None
-        assert cql_schemas.get('temporalOperands', None) is not None
+        assert 'temporalOperands' in get_cql_schemas is not None
+        assert get_cql_schemas.get('temporalOperands', None) is not None
 
         temporal_operands = ['property', 'function', 'value']
         for props in temporal_operands:
-            assert props in cql_schemas['temporalOperands']['properties']
+            assert props in get_cql_schemas['temporalOperands']['properties']
 
         # assertion for temporal value definition
-        assert 'temporalLiteral' in cql_schemas is not None
-        assert 'timeLiteral' in cql_schemas is not None
-        assert 'periodLiteral' in cql_schemas is not None
+        assert 'temporalLiteral' in get_cql_schemas is not None
+        assert 'timeLiteral' in get_cql_schemas is not None
+        assert 'periodLiteral' in get_cql_schemas is not None
 
 
-def test_cql_filters_arithmetic_operands(cql_schemas, is_cql):
+def test_cql_filters_arithmetic_operands(get_cql_schemas, is_cql):
     """
     Assertions for CQL arithmetic operands schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for arithmetic operands
-        assert 'arithmeticOperands' in cql_schemas is not None
-        assert cql_schemas.get('arithmeticOperands', None) is not None
+        assert 'arithmeticOperands' in get_cql_schemas is not None
+        assert get_cql_schemas.get('arithmeticOperands', None) is not None
 
         arithmetic_operands = ['property', 'function', 'value',
                                '+', '-', '*', '/']
         for props in arithmetic_operands:
-            assert props in cql_schemas['arithmeticOperands']['properties']
+            assert props in get_cql_schemas['arithmeticOperands']['properties']
 
         # assertion for scalar operands
-        assert 'scalarOperands' in cql_schemas is not None
-        assert cql_schemas.get('scalarOperands', None) is not None
+        assert 'scalarOperands' in get_cql_schemas is not None
+        assert get_cql_schemas.get('scalarOperands', None) is not None
 
         scalar_operands = ['property', 'function', 'value', '+', '-', '*', '/']
         for props in scalar_operands:
-            assert props in cql_schemas['scalarOperands']['properties']
+            assert props in get_cql_schemas['scalarOperands']['properties']
 
         # assertion for +,-,*,/ definition
         arithmetic_operators = ['add', 'sub', 'mul', 'div']
         for arithmetic_operator in arithmetic_operators:
-            assert arithmetic_operator in cql_schemas is not None
+            assert arithmetic_operator in get_cql_schemas is not None
 
         # assertion for value definition
-        assert 'scalarLiteral' in cql_schemas is not None
+        assert 'scalarLiteral' in get_cql_schemas is not None
 
 
-def test_cql_filters_functions(cql_schemas, is_cql):
+def test_cql_filters_functions(get_cql_schemas, is_cql):
     """
     Assertions for CQL functions schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for functions
-        assert 'function' in cql_schemas is not None
-        assert cql_schemas.get('function', None) is not None
+        assert 'function' in get_cql_schemas is not None
+        assert get_cql_schemas.get('function', None) is not None
 
         function = ['name', 'arguments']
         for props in function:
-            assert props in cql_schemas['function']['properties']
+            assert props in get_cql_schemas['function']['properties']
 
 
-def test_cql_filters_function_obj_args(cql_schemas, is_cql):
+def test_cql_filters_function_obj_args(get_cql_schemas, is_cql):
     """
     Assertions for CQL function object arguments schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for function Object Arguments
-        assert 'functionObjectArgument' in cql_schemas is not None
-        assert cql_schemas.get('functionObjectArgument', None) is not None
+        assert 'functionObjectArgument' in get_cql_schemas is not None
+        assert get_cql_schemas.get('functionObjectArgument', None) is not None
 
         function_object_argument = ['property', 'function',
                                     'geometry', 'bbox',
                                     'temporalValue', '+', '-',
                                     '*', '/']
         for props in function_object_argument:
-            assert props in cql_schemas['functionObjectArgument']['properties']
+            assert props in get_cql_schemas['functionObjectArgument']['properties'] # noqa
 
         # assertion for bbox
-        assert 'bbox' in cql_schemas is not None
+        assert 'bbox' in get_cql_schemas is not None
         # assertion for envelope definition
-        assert 'envelopeLiteral' in cql_schemas is not None
+        assert 'envelopeLiteral' in get_cql_schemas is not None
         # assertion for geometry definition
-        assert 'geometryLiteral' in cql_schemas is not None
+        assert 'geometryLiteral' in get_cql_schemas is not None
 
 
-def test_cql_filters_capabilities_assertion(cql_schemas, is_cql):
+def test_cql_filters_capabilities_assertion(get_cql_schemas, is_cql):
     """
     Assertions for CQL capabilities assertion schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for capabilities assertion
-        assert 'capabilities-assertion' in cql_schemas is not None
-        assert cql_schemas.get('capabilities-assertion', None) is not None
+        assert 'capabilities-assertion' in get_cql_schemas is not None
+        assert get_cql_schemas.get('capabilities-assertion', None) is not None
 
         capabilities_assertion = ['name', 'operators', 'operands']
         for props in capabilities_assertion:
-            assert props in cql_schemas['capabilities-assertion']['properties']
+            assert props in get_cql_schemas['capabilities-assertion']['properties'] # noqa
 
 
-def test_cql_filters_function_description(cql_schemas, is_cql):
+def test_cql_filters_function_description(get_cql_schemas, is_cql):
     """
     Assertions for CQL function description schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
 
     if is_cql:
         # assertion for function description
-        assert 'functionDescription' in cql_schemas is not None
-        assert cql_schemas.get('functionDescription', None) is not None
+        assert 'functionDescription' in get_cql_schemas is not None
+        assert get_cql_schemas.get('functionDescription', None) is not None
 
         function_description = ['name', 'returns', 'arguments']
         for props in function_description:
-            assert props in cql_schemas['functionDescription']['properties']
+            assert props in get_cql_schemas['functionDescription']['properties'] # noqa
 
 
-def test_cql_filters_capabilities(cql_schemas, is_cql):
+def test_cql_filters_capabilities(get_cql_schemas, is_cql):
     """
     Assertions for CQL filter capabilities schema in OpenAPI 3.0 Document
-    :param cql_schemas: OpenAPI 3.0 Document schemas
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
     :param is_cql: boolean value
     """
     if is_cql:
         # assertion for filter capabilities
-        assert 'filter-capabilities' in cql_schemas is not None
-        assert cql_schemas.get('filter-capabilities', None) is not None
+        assert 'filter-capabilities' in get_cql_schemas is not None
+        assert get_cql_schemas.get('filter-capabilities', None) is not None
 
         filter_capabilities = ['conformance-classes',
                                'capabilities', 'functions']
         for props in filter_capabilities:
-            assert props in cql_schemas['filter-capabilities']['properties']
+            assert props in get_cql_schemas['filter-capabilities']['properties']  # noqa
+
+
+def test_cql_queryables_path(get_oas_30_, get_collections, is_cql):
+    """
+    Assertions for queryable paths
+    :param get_oas_30_: OpenAPI 3.0 Document object
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
+    :param is_cql: boolean value
+    """
+    cql_paths = get_oas_30_.get('paths', None)
+
+    if is_cql:
+        # assertion for root queryables path
+        assert '/queryables' in cql_paths is not None
+        assert isinstance(cql_paths['/queryables'], dict)
+    else:
+        # assertion for non filter collections
+        assert '/queryables' not in cql_paths
+
+    # assertion for local queryables path
+    for k, _ in get_collections.items():
+        assert '/collections/'+k+'/queryables' in cql_paths is not None
+        assert isinstance(cql_paths['/collections/'+k+'/queryables'], dict)
+
+        # assertion for queryables path attributes
+        get_path_attributes = ['summary', 'description', 'tags', 'parameters', 'responses'] # noqa
+        for get_path_attribute in get_path_attributes:
+            if is_cql:
+                # root queryables
+                assert get_path_attribute in cql_paths['/queryables']['get']
+            # local queryables
+            assert get_path_attribute in cql_paths['/collections/'+k+'/queryables']['get'] # noqa
+
+        # assertion for queryables responses attributes
+        responses = ['200', '400', '404', '500']
+        for response in responses:
+            if is_cql:
+                # root queryables
+                assert response in cql_paths['/queryables']['get']['responses']
+            # local queryables
+            assert response in \
+                cql_paths['/collections/' + k + '/queryables']['get']['responses'] # noqa
+
+
+def test_cql_queryables_response(get_cql_components, get_cql_schemas):
+    """
+    Assertions for queryable responses and schemas
+    :param get_cql_components: OpenAPI 3.0 Document components
+    :param get_collections: collection object
+    :param is_cql: boolean value
+    """
+    cql_responses = get_cql_components.get('responses', None)
+    # assertion for responses
+    assert cql_responses is not None
+
+    queryables_response = cql_responses.get('Queryables', None)
+    # assertion for queryables response
+    assert queryables_response is not None
+
+    assert isinstance(queryables_response, dict)
+
+    queryables_response_keys = ['description', 'content']
+    # assertion for queryables response keys
+    for queryables_response_key in queryables_response_keys:
+        assert queryables_response_key in queryables_response
+
+    # assertion for queryables schema reference
+    queryables_response_schema = queryables_response['content']['application/json']['schema']['$ref']  # noqa
+    assert '#/components/schemas/queryables' in queryables_response_schema
+
+    queryables_schema = get_cql_schemas.get('queryables', None)
+    # assertion for queryables schema
+    assert queryables_schema is not None
+
+    assert isinstance(queryables_schema, dict)
+
+    queryables_schema_keys = ['type', 'required', 'properties']
+    # assertion for queryables schema keys
+    for queryables_schema_key in queryables_schema_keys:
+        assert queryables_schema_key in queryables_schema
+
+    # assertion for queryables schema properties
+    assert 'queryables' in queryables_schema['properties']
+    assert queryables_schema['properties']['queryables'].get('type', None) is not None # noqa
+    assert queryables_schema['properties']['queryables'].get('items', None) is not None # noqa
+
+    queryables_schema_prop = queryables_schema['properties']['queryables']['items']['properties'] # noqa
+    params = ['queryable', 'title', 'description', 'language', 'type', 'type-ref'] # noqa
+    for param in params:
+        assert param in queryables_schema_prop
+        param_props = ['description', 'type']
+        for param_prop in param_props:
+            assert param_prop in queryables_schema_prop[param]
+            if param == 'language':
+                assert 'default' in queryables_schema_prop[param]
+            if param == 'type-ref':
+                assert 'format' in queryables_schema_prop[param]
+                assert queryables_schema_prop[param]['format'] == 'url'
+
+
+def test_auxiliary_openapi_extensions(get_cql_components, get_cql_schemas, is_cql):  # noqa
+    """
+    Assertions for auxiliary extensions in OpenAPI 3.0 Document
+    :param get_cql_components: OpenAPI 3.0 Document components
+    :param get_cql_schemas: OpenAPI 3.0 Document schemas
+    :param is_cql: boolean value
+    """
+    # assertion for components
+    assert get_cql_components is not None
+
+    # assertion for parameters
+    assert get_cql_components.get('parameters', None) is not None
+
+    # assertion for responses
+    assert get_cql_components.get('responses', None) is not None
+
+    # assertion for schemas
+    assert get_cql_schemas is not None
+
+    # assertion if filter is not supported
+    if not is_cql:
+        # assertion for non existance of filter parameters
+        assert get_cql_components['parameters'].get('filter', None) is None
+        assert get_cql_components['parameters'].get('filter-lang', None) is None # noqa
+
+        # assertion for non existance of filter schemas
+        filter_schemas = ['predicates', 'logicalExpression',
+                          'comparisonExpressions',
+                          'spatialExpressions', 'temporalExpressions',
+                          'and', 'or', 'not',
+                          'eq', 'lt', 'gt', 'lte', 'gte', 'between',
+                          'like', 'in', 'equals',
+                          'disjoint', 'touches', 'within', 'overlaps',
+                          'crosses', 'intersects',
+                          'contains', 'after', 'before', 'begins',
+                          'begunby', 'tcontains', 'during',
+                          'endedby', 'ends', 'tequals', 'meets',
+                          'metby', 'toverlaps', 'overlappedby',
+                          'anyinteracts', 'tintersects',
+                          'booleanOperands', 'arithmeticOperands',
+                          'add', 'sub', 'mul', 'div',
+                          'scalarOperands', 'spatialOperands',
+                          'temporalOperands', 'function',
+                          'functionObjectArgument', 'scalarLiteral',
+                          'geometryLiteral', 'bbox',
+                          'envelopeLiteral', 'temporalLiteral',
+                          'timeLiteral', 'periodLiteral',
+                          'capabilities-assertion', 'functionDescription',
+                          'filter-capabilities']
+        for filter in filter_schemas:
+            assert get_cql_schemas.get(filter, None) is None
