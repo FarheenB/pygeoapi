@@ -152,7 +152,9 @@ resources:
             name: GeoJSON
             data: tests/data/ne_110m_lakes.geojson
             id_field: id
-
+        filters:
+            - cql-text
+            - cql-jsons
 
     hello-world:
         type: process
