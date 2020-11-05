@@ -5,3 +5,5 @@ pytz
 PyYAML
 rasterio
 unicodecsv
+pycql
+shapely

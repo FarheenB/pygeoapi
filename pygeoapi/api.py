@@ -49,6 +49,7 @@ from pygeoapi.provider.base import (
     ProviderGenericError, ProviderConnectionError, ProviderNotFoundError,
     ProviderInvalidQueryError, ProviderQueryError, ProviderItemNotFoundError,
     ProviderTypeError)
+from pygeoapi.cql_exception import CQLException
 from pygeoapi.util import (dategetter, filter_dict_by_key_value,
                            get_provider_by_type, get_provider_default,
                            get_typed_value, render_j2_template,
@@ -665,7 +666,8 @@ class API:
 
         properties = []
         reserved_fieldnames = ['bbox', 'f', 'limit', 'startindex',
-                               'resulttype', 'datetime', 'sortby']
+                               'resulttype', 'datetime', 'sortby',
+                               'filter', 'filter-lang']
         formats = FORMATS
         formats.extend(f.lower() for f in PLUGINS['formatter'].keys())
 
@@ -826,6 +828,26 @@ class API:
             LOGGER.error(exception)
             return headers_, 400, to_json(exception, self.pretty_print)
 
+        # processing cql filter query parameter
+        LOGGER.debug('Processing filter parameter')
+
+        try:
+            cql_expression = args.get('filter')
+            if cql_expression:
+                cql_handler = load_plugin(
+                    'extensions',
+                    {'name': 'CQL', 'cql_expression': cql_expression}
+                )
+                cql_handler.cql_validation()
+
+        except CQLException:
+            exception = {
+                'code': 'InvalidParameterValue',
+                'description': 'Invalid CQL filter expression'
+            }
+            LOGGER.error(exception)
+            return headers_, 400, json.dumps(exception)
+
         LOGGER.debug('Loading provider')
         try:
             p = load_plugin('provider', get_provider_by_type(
@@ -901,12 +923,15 @@ class API:
         LOGGER.debug('limit: {}'.format(limit))
         LOGGER.debug('resulttype: {}'.format(resulttype))
         LOGGER.debug('sortby: {}'.format(sortby))
+        LOGGER.debug('filter: {}'.format(cql_expression))
 
         try:
             content = p.query(startindex=startindex, limit=limit,
                               resulttype=resulttype, bbox=bbox,
                               datetime=datetime_, properties=properties,
-                              sortby=sortby)
+                              sortby=sortby,
+                              cql_expression=cql_expression)
+
         except ProviderConnectionError as err:
             exception = {
                 'code': 'NoApplicableCode',
@@ -928,6 +953,13 @@ class API:
             }
             LOGGER.error(err)
             return headers_, 500, to_json(exception, self.pretty_print)
+        except CQLException as err:
+            exception = {
+                'code': 'InvalidParameterValue',
+                'description': 'Invalid CQL filter expression'
+            }
+            LOGGER.error(err)
+            return headers_, 400, json.dumps(exception, self.pretty_print)
 
         serialized_query_params = ''
         for k, v in args.items():

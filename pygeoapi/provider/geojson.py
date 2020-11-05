@@ -33,6 +33,8 @@ import os
 import uuid
 
 from pygeoapi.provider.base import BaseProvider, ProviderItemNotFoundError
+from pygeoapi.plugin import load_plugin
+from pygeoapi.cql_exception import CQLException
 
 LOGGER = logging.getLogger(__name__)
 
@@ -109,7 +111,8 @@ class GeoJSONProvider(BaseProvider):
         return data
 
     def query(self, startindex=0, limit=10, resulttype='results',
-              bbox=[], datetime=None, properties=[], sortby=[]):
+              bbox=[], datetime=None, properties=[], sortby=[],
+              cql_expression=None):
         """
         query the provider
 
@@ -120,6 +123,7 @@ class GeoJSONProvider(BaseProvider):
         :param datetime: temporal (datestamp or extent)
         :param properties: list of tuples (name, value)
         :param sortby: list of dicts (property, order)
+        :param cql_expression: string of filter expression
 
         :returns: FeatureCollection dict of 0..n GeoJSON features
         """
@@ -127,12 +131,26 @@ class GeoJSONProvider(BaseProvider):
         # TODO filter by bbox without resorting to third-party libs
         data = self._load()
 
+        if cql_expression:
+            try:
+                feature_list = data['features']
+
+                cql_handler = load_plugin('extensions',
+                                          {'name': 'CQL',
+                                           'cql_expression': cql_expression,
+                                           'feature_list': feature_list})
+                feature_list = cql_handler.cql_filter()
+            except Exception as err:
+                raise CQLException(err)
+
+            data['features'] = feature_list
+
         data['numberMatched'] = len(data['features'])
 
         if resulttype == 'hits':
             data['features'] = []
         else:
-            data['features'] = data['features'][startindex:startindex+limit]
+            data['features'] = data['features'][startindex:startindex + limit]
             data['numberReturned'] = len(data['features'])
 
         return data
@@ -142,6 +160,7 @@ class GeoJSONProvider(BaseProvider):
         query the provider by id
 
         :param identifier: feature id
+
         :returns: dict of single GeoJSON feature
         """
 

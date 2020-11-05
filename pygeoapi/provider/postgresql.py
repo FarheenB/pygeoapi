@@ -49,6 +49,8 @@ import psycopg2
 from psycopg2.sql import SQL, Identifier, Literal
 from pygeoapi.provider.base import BaseProvider, \
     ProviderConnectionError, ProviderQueryError, ProviderItemNotFoundError
+from pygeoapi.cql_exception import CQLException
+from pygeoapi.plugin import load_plugin
 
 from psycopg2.extras import RealDictCursor
 
@@ -78,7 +80,6 @@ class DatabaseConnection:
              or in a specific schema ["osm", "public"].
              Note: First we should have the schema
              being used and then public
-
         :param table: table name containing the data. This variable is used to
                 assemble column information
         :param context: query or hits, if query then it will determine
@@ -119,7 +120,7 @@ class DatabaseConnection:
             result = self.cur.fetchall()
             self.columns = SQL(', ').join(
                 [Identifier(item[0]) for item in result]
-                )
+            )
             self.fields = dict(result)
 
         return self
@@ -137,8 +138,8 @@ class PostgreSQLProvider(BaseProvider):
 
     def __init__(self, provider_def):
         """
-        PostgreSQLProvider Class constructor
 
+        PostgreSQLProvider Class constructor
         :param provider_def: provider definitions from yml pygeoapi-config.
                              data,id_field, name set in parent class
                              data contains the connection information
@@ -205,7 +206,8 @@ class PostgreSQLProvider(BaseProvider):
         return where_clause
 
     def query(self, startindex=0, limit=10, resulttype='results',
-              bbox=[], datetime=None, properties=[], sortby=[]):
+              bbox=[], datetime=None, properties=[], sortby=[],
+              cql_expression=None):
         """
         Query Postgis for all the content.
         e,g: http://localhost:5000/collections/hotosm_bdi_waterways/items?
@@ -218,73 +220,162 @@ class PostgreSQLProvider(BaseProvider):
         :param datetime: temporal (datestamp or extent)
         :param properties: list of tuples (name, value)
         :param sortby: list of dicts (property, order)
+        :param cql_expression: cql query filter expression
 
         :returns: GeoJSON FeaturesCollection
         """
+
         LOGGER.debug('Querying PostGIS')
 
-        if resulttype == 'hits':
+        if cql_expression:
+            try:
+                fields = self.get_fields()
+                field_list = {}
+                for k in fields.keys():
+                    field_list[k] = k
+                field_list['geometry'] = self.geom
+                cql_handler = load_plugin('extensions',
+                                          {'name': 'CQL',
+                                           'cql_expression': cql_expression,
+                                           'feature_list': None,
+                                           'field_list': field_list})
 
-            with DatabaseConnection(self.conn_dic,
-                                    self.table, context="hits") as db:
+                cql_where_conditions = cql_handler.postgres_where_clause()
+                cql_where_clause = SQL(' WHERE {}').\
+                    format(SQL(' AND ').join(cql_where_conditions))
+
+                if resulttype == 'hits':
+
+                    with DatabaseConnection(self.conn_dic,
+                                            self.table, context="hits") as db:
+                        cursor = db.conn.cursor(cursor_factory=RealDictCursor)
+
+                        sql_query = SQL("SELECT COUNT(*) as hits from {} {}").\
+                            format(Identifier(self.table), cql_where_clause)
+                        try:
+                            cursor.execute(sql_query)
+                        except Exception as err:
+                            LOGGER.error(
+                                'Error executing sql_query: {}: '
+                                '{}'.format(sql_query.as_string(cursor), err))
+                            raise ProviderQueryError()
+
+                        hits = cursor.fetchone()["hits"]
+
+                    return self.__response_feature_hits(hits)
+
+                end_index = startindex + limit
+
+                with DatabaseConnection(self.conn_dic, self.table) as db:
+                    cursor = db.conn.cursor(cursor_factory=RealDictCursor)
+
+                    sql_query = SQL("DECLARE \"geo_cursor\" CURSOR FOR \
+                    SELECT DISTINCT {},ST_AsGeoJSON({}) FROM {}{}"). \
+                        format(db.columns,
+                               Identifier(self.geom),
+                               Identifier(self.table),
+                               cql_where_clause)
+
+                    LOGGER.debug(
+                        'SQL Query: {}'.format(sql_query.as_string(cursor)))
+                    LOGGER.debug('Start Index: {}'.format(startindex))
+                    LOGGER.debug('End Index: {}'.format(end_index))
+                    try:
+                        cursor.execute(sql_query)
+                        for index in [startindex, limit]:
+                            cursor.execute("fetch forward {} from geo_cursor"
+                                           .format(index))
+                    except Exception as err:
+                        LOGGER.error('Error executing sql_query: {}'.format(
+                            sql_query.as_string(cursor)))
+                        LOGGER.error(err)
+                        raise ProviderQueryError()
+
+                    row_data = cursor.fetchall()
+
+                    feature_collection = {
+                        'type': 'FeatureCollection',
+                        'features': []
+                    }
+
+                    for rd in row_data:
+                        feature_collection['features'].append(
+                            self.__response_feature(rd))
+
+                    return feature_collection
+
+            except Exception as err:
+                LOGGER.debug('Invalid CQL filter evaluation: {}'.format(err))
+                raise CQLException()
+
+        else:
+            if resulttype == 'hits':
+
+                with DatabaseConnection(self.conn_dic,
+                                        self.table, context="hits") as db:
+                    cursor = db.conn.cursor(cursor_factory=RealDictCursor)
+
+                    where_clause = self.__get_where_clauses(
+                        properties=properties, bbox=bbox)
+                    sql_query = SQL("SELECT COUNT(*) as hits from {} {}"). \
+                        format(Identifier(self.table), where_clause)
+                    try:
+                        cursor.execute(sql_query)
+                    except Exception as err:
+                        LOGGER.error(
+                            'Error executing sql_query: {}: '
+                            '{}'.format(sql_query.as_string(cursor), err))
+                        raise ProviderQueryError()
+
+                    hits = cursor.fetchone()["hits"]
+
+                return self.__response_feature_hits(hits)
+
+            end_index = startindex + limit
+
+            with DatabaseConnection(self.conn_dic, self.table) as db:
                 cursor = db.conn.cursor(cursor_factory=RealDictCursor)
 
                 where_clause = self.__get_where_clauses(
                     properties=properties, bbox=bbox)
-                sql_query = SQL("SELECT COUNT(*) as hits from {} {}").\
-                    format(Identifier(self.table), where_clause)
+
+                sql_query = SQL("DECLARE \"geo_cursor\" CURSOR FOR \
+                SELECT DISTINCT {},ST_AsGeoJSON({}) FROM {}{}"). \
+                    format(db.columns,
+                           Identifier(self.geom),
+                           Identifier(self.table),
+                           where_clause)
+
+                LOGGER.debug(
+                    'SQL Query: '
+                    '{}'.format(sql_query.as_string(cursor)))
+                LOGGER.debug('Start Index: {}'.format(startindex))
+                LOGGER.debug('End Index: {}'.format(end_index))
                 try:
                     cursor.execute(sql_query)
+                    for index in [startindex, limit]:
+                        cursor.execute(
+                            "fetch forward {} from "
+                            "geo_cursor".format(index))
                 except Exception as err:
-                    LOGGER.error('Error executing sql_query: {}: {}'.format(
-                        sql_query.as_string(cursor), err))
+                    LOGGER.error(
+                        'Error executing sql_query: '
+                        '{}'.format(sql_query.as_string(cursor)))
+                    LOGGER.error(err)
                     raise ProviderQueryError()
 
-                hits = cursor.fetchone()["hits"]
+                row_data = cursor.fetchall()
 
-            return self.__response_feature_hits(hits)
+                feature_collection = {
+                    'type': 'FeatureCollection',
+                    'features': []
+                }
 
-        end_index = startindex + limit
+                for rd in row_data:
+                    feature_collection['features'].append(
+                        self.__response_feature(rd))
 
-        with DatabaseConnection(self.conn_dic, self.table) as db:
-            cursor = db.conn.cursor(cursor_factory=RealDictCursor)
-
-            where_clause = self.__get_where_clauses(
-                properties=properties, bbox=bbox)
-
-            sql_query = SQL("DECLARE \"geo_cursor\" CURSOR FOR \
-             SELECT DISTINCT {},ST_AsGeoJSON({}) FROM {}{}").\
-                format(db.columns,
-                       Identifier(self.geom),
-                       Identifier(self.table),
-                       where_clause)
-
-            LOGGER.debug('SQL Query: {}'.format(sql_query.as_string(cursor)))
-            LOGGER.debug('Start Index: {}'.format(startindex))
-            LOGGER.debug('End Index: {}'.format(end_index))
-            try:
-                cursor.execute(sql_query)
-                for index in [startindex, limit]:
-                    cursor.execute("fetch forward {} from geo_cursor"
-                                   .format(index))
-            except Exception as err:
-                LOGGER.error('Error executing sql_query: {}'.format(
-                    sql_query.as_string(cursor)))
-                LOGGER.error(err)
-                raise ProviderQueryError()
-
-            row_data = cursor.fetchall()
-
-            feature_collection = {
-                'type': 'FeatureCollection',
-                'features': []
-            }
-
-            for rd in row_data:
-                feature_collection['features'].append(
-                    self.__response_feature(rd))
-
-            return feature_collection
+                return feature_collection
 
     def get_previous(self, cursor, identifier):
         """
@@ -294,6 +385,7 @@ class PostgreSQLProvider(BaseProvider):
 
         :returns: feature id
         """
+
         sql = 'SELECT {} AS id FROM {} WHERE {}<%s ORDER BY {} DESC LIMIT 1'
         cursor.execute(SQL(sql).format(
             Identifier(self.id_field),
@@ -313,6 +405,7 @@ class PostgreSQLProvider(BaseProvider):
 
         :returns: feature id
         """
+
         sql = 'SELECT {} AS id FROM {} WHERE {}>%s ORDER BY {} LIMIT 1'
         cursor.execute(SQL(sql).format(
             Identifier(self.id_field),
@@ -347,7 +440,7 @@ class PostgreSQLProvider(BaseProvider):
             LOGGER.debug('SQL Query: {}'.format(sql_query.as_string(db.conn)))
             LOGGER.debug('Identifier: {}'.format(identifier))
             try:
-                cursor.execute(sql_query, (identifier, ))
+                cursor.execute(sql_query, (identifier,))
             except Exception as err:
                 LOGGER.error('Error executing sql_query: {}'.format(
                     sql_query.as_string(cursor)))

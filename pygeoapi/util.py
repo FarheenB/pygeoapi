@@ -326,7 +326,7 @@ def get_provider_default(providers):
 
     try:
         default = (next(d for i, d in enumerate(providers) if 'default' in d
-                   and d['default'] is True))
+                        and d['default'] is True))
         LOGGER.debug('found default provider type')
     except StopIteration:
         LOGGER.debug('no default provider type.  Returning first provider')
@@ -334,3 +334,24 @@ def get_provider_default(providers):
 
     LOGGER.debug('Default provider: {}'.format(default['type']))
     return default
+
+
+def get_extension_by_type(providers, extension_type):
+    """
+    helper function to check the provider's extension
+    support by an extension type
+
+    :param providers: ``list`` of providers
+    :param extension_type: type of provider (feature)
+
+    :returns: extension based on type
+    """
+
+    LOGGER.debug('Searching for extension type {}'.format(extension_type))
+    e = {}
+
+    if 'extensions' in providers:
+        extensions = providers['extensions']
+        e = (next(d for i, d in enumerate(extensions)
+                  if d['type'] == extension_type))
+    return e
